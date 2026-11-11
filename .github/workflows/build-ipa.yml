@@ -1,0 +1,60 @@
+name: Build Tasbih IPA
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+
+jobs:
+  build-ipa:
+    name: Build Unsigned iOS IPA
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install XcodeGen
+        run: |
+          if ! command -v xcodegen >/dev/null 2>&1; then
+            brew install xcodegen
+          fi
+
+      - name: Generate Xcode project
+        run: xcodegen generate
+
+      - name: Build unsigned iOS archive
+        run: |
+          xcodebuild \
+            -project Tasbih.xcodeproj \
+            -scheme Tasbih \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination "generic/platform=iOS" \
+            -archivePath "$PWD/build/Tasbih.xcarchive" \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            archive
+
+      - name: Package Tasbih.ipa
+        run: |
+          APP_PATH="$PWD/build/Tasbih.xcarchive/Products/Applications/Tasbih.app"
+          if [ ! -d "$APP_PATH" ]; then
+            echo "Error: Tasbih.app not found at $APP_PATH"
+            ls -la "$PWD/build/Tasbih.xcarchive/Products/Applications" || true
+            exit 1
+          fi
+          mkdir -p build/ipa/Payload
+          cp -R "$APP_PATH" build/ipa/Payload/
+          (cd build/ipa && zip -qr ../Tasbih.ipa Payload)
+          ls -lh build/Tasbih.ipa
+
+      - name: Upload Tasbih.ipa artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Tasbih-IPA
+          path: build/Tasbih.ipa
+          retention-days: 90

@@ -1,0 +1,8 @@
+# Xcode & build outputs
+*.xcodeproj/
+*.xcworkspace/
+build/
+DerivedData/
+.DS_Store
+*.ipa
+*.xcarchive
